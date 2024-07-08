@@ -1,0 +1,55 @@
+package main
+
+import (
+	"encoding/json"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type Resource struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+var resources = []Resource{}
+
+func main() {
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", HomeHandler).Methods("GET")
+	r.HandleFunc("/api/resource", CreateResourceHandler).Methods("POST")
+	r.HandleFunc("/api/resource/{id}", GetResourceHandler).Methods("GET")
+
+	fmt.Println("Server is running on port 8000")
+	log.Fatal(http.ListenAndServe(":8000", r))
+}
+
+func HomeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Welcome to my API")
+}
+
+func CreateResourceHandler(w http.ResponseWriter, r *http.Request) {
+	var resource Resource
+	_ = json.NewDecoder(r.Body).Decode(&resource)
+	resource.ID = fmt.Sprintf("%d", len(resources)+1)
+	resources = append(resources, resource)
+	json.NewEncoder(w).Encode(resource)
+}
+
+func GetResourceHandler(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	for _, item := range resources {
+		if item.ID == params["id"] {
+			json.NewEncoder(w).Encode(item)
+			return
+		}
+	}
+	http.NotFound(w, r)
+}
